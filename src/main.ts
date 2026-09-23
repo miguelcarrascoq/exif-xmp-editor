@@ -6,6 +6,7 @@ import {
   writeMetadata,
   type ImageMetadata,
 } from './lib/metadata'
+import { initPanoramaViewer } from './lib/panorama-viewer'
 
 interface AppState {
   file: File | null
@@ -45,10 +46,35 @@ app.innerHTML = `
     <h2>Image &amp; metadata</h2>
     <div class="meta-row" id="meta-summary"></div>
     <div class="preview-wrap">
-      <img id="preview" alt="Panorama preview" />
+      <div
+        id="pano-viewer"
+        class="pano-viewer"
+        role="img"
+        aria-label="360 panorama preview — drag to set pose heading and pitch"
+      ></div>
+      <div class="pano-reticle" aria-hidden="true"></div>
     </div>
 
     <form id="meta-form">
+      <div class="form-grid">
+        <label>
+          <span>Altitude (m) <span class="hint">optional</span></span>
+          <input type="number" name="altitude" step="any" />
+        </label>
+        <label>
+          <span>Pose heading ° <span class="hint">0–360 · drag the 360° view or type</span></span>
+          <input type="number" name="heading" min="0" max="359.999" step="any" value="0" required />
+        </label>
+        <label>
+          <span>Pose pitch ° <span class="hint">-90…90 · drag the 360° view or type</span></span>
+          <input type="number" name="pitch" min="-90" max="90" step="any" value="0" />
+        </label>
+        <label>
+          <span>Pose roll ° <span class="hint">optional</span></span>
+          <input type="number" name="roll" min="-180" max="180" step="any" value="0" />
+        </label>
+      </div>
+
       <div class="form-grid">
         <label>
           <span>Latitude <span class="hint">(-90 … 90)</span></span>
@@ -71,25 +97,6 @@ app.innerHTML = `
           role="application"
           aria-label="Map to pick GPS location"
         ></div>
-      </div>
-
-      <div class="form-grid">
-        <label>
-          <span>Altitude (m) <span class="hint">optional</span></span>
-          <input type="number" name="altitude" step="any" />
-        </label>
-        <label>
-          <span>Pose heading ° <span class="hint">0–360, center faces this compass bearing</span></span>
-          <input type="number" name="heading" min="0" max="359.999" step="any" value="0" required />
-        </label>
-        <label>
-          <span>Pose pitch ° <span class="hint">optional</span></span>
-          <input type="number" name="pitch" min="-90" max="90" step="any" value="0" />
-        </label>
-        <label>
-          <span>Pose roll ° <span class="hint">optional</span></span>
-          <input type="number" name="roll" min="-180" max="180" step="any" value="0" />
-        </label>
       </div>
 
       <ul class="checklist">
@@ -123,15 +130,21 @@ const fileInput = document.querySelector<HTMLInputElement>('#file-input')!
 const editor = document.querySelector<HTMLElement>('#editor')!
 const message = document.querySelector<HTMLDivElement>('#message')!
 const metaSummary = document.querySelector<HTMLDivElement>('#meta-summary')!
-const preview = document.querySelector<HTMLImageElement>('#preview')!
 const form = document.querySelector<HTMLFormElement>('#meta-form')!
 const btnClear = document.querySelector<HTMLButtonElement>('#btn-clear')!
 const latInput = form.elements.namedItem('latitude') as HTMLInputElement
 const lonInput = form.elements.namedItem('longitude') as HTMLInputElement
+const headingInput = form.elements.namedItem('heading') as HTMLInputElement
+const pitchInput = form.elements.namedItem('pitch') as HTMLInputElement
 const mapPicker = initMapPicker({
   container: document.querySelector<HTMLElement>('#location-map')!,
   latInput,
   lonInput,
+})
+const panoViewer = initPanoramaViewer({
+  container: document.querySelector<HTMLElement>('#pano-viewer')!,
+  headingInput,
+  pitchInput,
 })
 
 function showMessage(text: string, kind: 'warn' | 'error' | 'ok' | '') {
@@ -150,7 +163,7 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;')
 }
 
-function revokePreview() {
+function revokeObjectUrl() {
   if (state.objectUrl) {
     URL.revokeObjectURL(state.objectUrl)
     state.objectUrl = null
@@ -158,7 +171,8 @@ function revokePreview() {
 }
 
 function clearState() {
-  revokePreview()
+  panoViewer.destroy()
+  revokeObjectUrl()
   state.file = null
   state.bytes = null
   state.meta = null
@@ -181,12 +195,11 @@ async function loadFile(file: File) {
     const bytes = new Uint8Array(buffer)
     const meta = await readMetadata(bytes)
 
-    revokePreview()
+    const prevUrl = state.objectUrl
     state.file = file
     state.bytes = bytes
     state.meta = meta
     state.objectUrl = URL.createObjectURL(file)
-    preview.src = state.objectUrl
 
     metaSummary.innerHTML = `
       <span>File: <code>${escapeHtml(file.name)}</code></span>
@@ -196,8 +209,6 @@ async function loadFile(file: File) {
     `
 
     const altInput = form.elements.namedItem('altitude') as HTMLInputElement
-    const headingInput = form.elements.namedItem('heading') as HTMLInputElement
-    const pitchInput = form.elements.namedItem('pitch') as HTMLInputElement
     const rollInput = form.elements.namedItem('roll') as HTMLInputElement
 
     latInput.value =
@@ -215,8 +226,12 @@ async function loadFile(file: File) {
     pitchInput.value = String(meta.gpano?.posePitchDegrees ?? 0)
     rollInput.value = String(meta.gpano?.poseRollDegrees ?? 0)
 
+    await panoViewer.setPanorama(state.objectUrl)
+    if (prevUrl) URL.revokeObjectURL(prevUrl)
+
     editor.hidden = false
     requestAnimationFrame(() => {
+      panoViewer.resize()
       mapPicker.invalidateSize()
       if (meta.latitude !== undefined && meta.longitude !== undefined) {
         mapPicker.syncFromInputs()
