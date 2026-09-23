@@ -16,6 +16,7 @@ Typical input: a full equirectangular stitch (for example `5888 × 2944`, aspect
 - Drag & drop or select a JPEG
 - Read existing GPS and GPano values when present
 - Edit latitude, longitude, optional altitude
+- Pick GPS on a map (OpenStreetMap + Esri satellite with city labels, Nominatim city search)
 - Set `PoseHeadingDegrees` (required for display on Google Maps)
 - Optional pose pitch / roll
 - Auto-fill full-sphere crop/size tags from image dimensions
@@ -39,6 +40,7 @@ This app **does not** publish to Google Maps or Street View. It only prepares th
 
 - [Vite](https://vitejs.dev/) + TypeScript
 - [exifr](https://github.com/MikeKovarik/exifr) for reading EXIF/GPS
+- [Leaflet](https://leafletjs.com/) map picker with [OpenStreetMap](https://www.openstreetmap.org/copyright) and [Esri World Imagery](https://www.esri.com/) tiles plus place labels; city search via [Nominatim](https://nominatim.openstreetmap.org/) (loaded in the browser; the JPEG itself is never uploaded)
 - Custom JPEG APP1 writers for GPS EXIF and GPano XMP
 - Deployable to **GitHub Pages** (or any static host / VPS nginx)
 

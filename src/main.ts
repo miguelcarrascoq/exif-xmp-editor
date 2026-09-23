@@ -1,4 +1,5 @@
 import './styles.css'
+import { initMapPicker } from './lib/map-picker'
 import {
   readMetadata,
   suggestOutputName,
@@ -57,6 +58,22 @@ app.innerHTML = `
           <span>Longitude <span class="hint">(-180 … 180)</span></span>
           <input type="number" name="longitude" step="any" required />
         </label>
+      </div>
+
+      <div class="map-picker">
+        <span class="map-picker-label">
+          Pick on map
+          <span class="hint">search a city · click or drag the marker · Map / Satellite</span>
+        </span>
+        <div
+          id="location-map"
+          class="location-map"
+          role="application"
+          aria-label="Map to pick GPS location"
+        ></div>
+      </div>
+
+      <div class="form-grid">
         <label>
           <span>Altitude (m) <span class="hint">optional</span></span>
           <input type="number" name="altitude" step="any" />
@@ -109,6 +126,13 @@ const metaSummary = document.querySelector<HTMLDivElement>('#meta-summary')!
 const preview = document.querySelector<HTMLImageElement>('#preview')!
 const form = document.querySelector<HTMLFormElement>('#meta-form')!
 const btnClear = document.querySelector<HTMLButtonElement>('#btn-clear')!
+const latInput = form.elements.namedItem('latitude') as HTMLInputElement
+const lonInput = form.elements.namedItem('longitude') as HTMLInputElement
+const mapPicker = initMapPicker({
+  container: document.querySelector<HTMLElement>('#location-map')!,
+  latInput,
+  lonInput,
+})
 
 function showMessage(text: string, kind: 'warn' | 'error' | 'ok' | '') {
   if (!kind) {
@@ -140,6 +164,7 @@ function clearState() {
   state.meta = null
   editor.hidden = true
   form.reset()
+  mapPicker.reset()
   showMessage('', '')
   fileInput.value = ''
 }
@@ -170,8 +195,6 @@ async function loadFile(file: File) {
       <span>Ratio: <code>${(meta.width / meta.height).toFixed(3)}</code></span>
     `
 
-    const latInput = form.elements.namedItem('latitude') as HTMLInputElement
-    const lonInput = form.elements.namedItem('longitude') as HTMLInputElement
     const altInput = form.elements.namedItem('altitude') as HTMLInputElement
     const headingInput = form.elements.namedItem('heading') as HTMLInputElement
     const pitchInput = form.elements.namedItem('pitch') as HTMLInputElement
@@ -193,6 +216,14 @@ async function loadFile(file: File) {
     rollInput.value = String(meta.gpano?.poseRollDegrees ?? 0)
 
     editor.hidden = false
+    requestAnimationFrame(() => {
+      mapPicker.invalidateSize()
+      if (meta.latitude !== undefined && meta.longitude !== undefined) {
+        mapPicker.syncFromInputs()
+      } else {
+        mapPicker.reset()
+      }
+    })
 
     if (meta.aspectRatioWarning) {
       showMessage(
