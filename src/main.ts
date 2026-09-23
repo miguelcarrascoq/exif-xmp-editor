@@ -89,7 +89,7 @@ app.innerHTML = `
       <div class="map-picker">
         <span class="map-picker-label">
           Pick on map
-          <span class="hint">search a city · click or drag the marker · Map / Satellite</span>
+          <span class="hint">search places · Places overlay when zoomed in · Map / Topo / Satellite</span>
         </span>
         <div
           id="location-map"

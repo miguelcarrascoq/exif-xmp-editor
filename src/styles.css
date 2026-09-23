@@ -329,6 +329,55 @@ header p {
   border-radius: 6px;
 }
 
+.map-poi {
+  display: flex;
+  align-items: center;
+  gap: 0.28rem;
+  white-space: nowrap;
+  pointer-events: auto;
+  transform: translate(-5px, -5px);
+}
+
+.map-poi-dot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #f0c14a;
+  border: 1.5px solid #061018;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+.map-poi--volcano .map-poi-dot,
+.map-poi--peak .map-poi-dot {
+  background: #e85d5d;
+}
+
+.map-poi--park .map-poi-dot {
+  background: #3ecf8e;
+}
+
+.map-poi--viewpoint .map-poi-dot,
+.map-poi--alpine_hut .map-poi-dot {
+  background: #3d9cf0;
+}
+
+.map-poi-label {
+  max-width: 9.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.68rem;
+  font-weight: 650;
+  line-height: 1.2;
+  color: #f4f7fa;
+  text-shadow:
+    0 0 3px rgba(0, 0, 0, 0.95),
+    0 1px 2px rgba(0, 0, 0, 0.9),
+    1px 0 2px rgba(0, 0, 0, 0.75),
+    -1px 0 2px rgba(0, 0, 0, 0.75);
+  pointer-events: none;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

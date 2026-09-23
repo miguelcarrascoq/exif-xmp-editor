@@ -3,6 +3,7 @@ import 'leaflet/dist/leaflet.css'
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
 import markerIcon from 'leaflet/dist/images/marker-icon.png'
 import markerShadow from 'leaflet/dist/images/marker-shadow.png'
+import { attachMapPois } from './map-pois'
 
 // Use L.icon (not Icon.Default): Default prefixes imagePath onto URLs and breaks Vite asset paths.
 const pinIcon = L.icon({
@@ -19,7 +20,7 @@ const pinIcon = L.icon({
 const DEFAULT_CENTER: L.LatLngExpression = [20, 0]
 const DEFAULT_ZOOM = 2
 const MARKER_ZOOM = 14
-const CITY_ZOOM = 12
+const PLACE_ZOOM = 12
 const COORD_DECIMALS = 6
 const SEARCH_DEBOUNCE_MS = 350
 const SEARCH_LIMIT = 6
@@ -66,14 +67,12 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;')
 }
 
-async function searchCities(query: string, signal: AbortSignal): Promise<NominatimResult[]> {
+async function searchPlaces(query: string, signal: AbortSignal): Promise<NominatimResult[]> {
   const url = new URL('https://nominatim.openstreetmap.org/search')
   url.searchParams.set('q', query)
   url.searchParams.set('format', 'json')
   url.searchParams.set('limit', String(SEARCH_LIMIT))
   url.searchParams.set('addressdetails', '0')
-  // Prefer settlements (cities / towns); broader than featureType=city alone.
-  url.searchParams.set('featureType', 'settlement')
 
   const res = await fetch(url.toString(), {
     signal,
@@ -85,7 +84,7 @@ async function searchCities(query: string, signal: AbortSignal): Promise<Nominat
   return (await res.json()) as NominatimResult[]
 }
 
-function createCitySearchControl(
+function createPlaceSearchControl(
   onSelect: (lat: number, lon: number, bbox?: L.LatLngBoundsExpression) => void,
 ): L.Control {
   const control = new L.Control({ position: 'topleft' })
@@ -100,8 +99,8 @@ function createCitySearchControl(
         <input
           type="search"
           class="map-search-input"
-          placeholder="Search city…"
-          aria-label="Search city"
+          placeholder="Search place…"
+          aria-label="Search place"
         />
         <button type="submit" class="map-search-btn" aria-label="Search">Go</button>
       </form>
@@ -136,7 +135,7 @@ function createCitySearchControl(
       clearResults()
       setStatus(null)
       if (items.length === 0) {
-        setStatus('No cities found')
+        setStatus('No places found')
         return
       }
       resultsEl.hidden = false
@@ -179,7 +178,7 @@ function createCitySearchControl(
       setStatus('Searching…')
       clearResults()
       try {
-        const items = await searchCities(q, abort.signal)
+        const items = await searchPlaces(q, abort.signal)
         renderResults(items)
       } catch (err) {
         if (err instanceof DOMException && err.name === 'AbortError') return
@@ -225,6 +224,12 @@ export function initMapPicker(options: MapPickerOptions): MapPicker {
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
   })
 
+  const topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    maxZoom: 17,
+    attribution:
+      'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)',
+  })
+
   const satelliteImagery = L.tileLayer(
     'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     {
@@ -251,17 +256,6 @@ export function initMapPicker(options: MapPickerOptions): MapPicker {
     zoom: DEFAULT_ZOOM,
     layers: [osm],
   })
-
-  L.control
-    .layers(
-      {
-        Map: osm,
-        Satellite: satellite,
-      },
-      {},
-      { position: 'topright' },
-    )
-    .addTo(map)
 
   let marker: L.Marker | null = null
   let syncingFromMap = false
@@ -292,6 +286,31 @@ export function initMapPicker(options: MapPickerOptions): MapPicker {
     }
   }
 
+  const pois = attachMapPois({
+    map,
+    onSelect: (lat, lon) => {
+      writeInputs(lat, lon)
+      setMarker(lat, lon, false)
+    },
+  })
+
+  L.control
+    .layers(
+      {
+        Map: osm,
+        Topo: topo,
+        Satellite: satellite,
+      },
+      {
+        Places: pois.layer,
+      },
+      { position: 'topright' },
+    )
+    .addTo(map)
+
+  // Places overlay on by default (loads data once zoomed in).
+  pois.layer.addTo(map)
+
   function syncFromInputs() {
     if (syncingFromMap) return
     const lat = parseCoord(latInput.value)
@@ -306,13 +325,13 @@ export function initMapPicker(options: MapPickerOptions): MapPicker {
     writeInputs(lat, lng)
   })
 
-  createCitySearchControl((lat, lon, bbox) => {
+  createPlaceSearchControl((lat, lon, bbox) => {
     writeInputs(lat, lon)
     setMarker(lat, lon, false)
     if (bbox) {
-      map.fitBounds(bbox, { maxZoom: CITY_ZOOM + 2, padding: [24, 24] })
+      map.fitBounds(bbox, { maxZoom: PLACE_ZOOM + 2, padding: [24, 24] })
     } else {
-      map.setView([lat, lon], CITY_ZOOM)
+      map.setView([lat, lon], PLACE_ZOOM)
     }
   }).addTo(map)
 
@@ -327,6 +346,7 @@ export function initMapPicker(options: MapPickerOptions): MapPicker {
       marker.remove()
       marker = null
     }
+    pois.clear()
     map.setView(DEFAULT_CENTER, DEFAULT_ZOOM)
   }
 
