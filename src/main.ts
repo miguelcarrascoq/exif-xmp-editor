@@ -62,16 +62,16 @@ app.innerHTML = `
           <input type="number" name="altitude" step="any" />
         </label>
         <label>
-          <span>Pose heading ° <span class="hint">0–360 · drag the 360° view or type</span></span>
-          <input type="number" name="heading" min="0" max="359.999" step="any" value="0" required />
+          <span>Pose heading ° <span class="hint">0–360 · image center compass for Maps</span></span>
+          <input type="number" name="poseHeading" min="0" max="359.999" step="any" value="0" required />
         </label>
         <label>
-          <span>Pose pitch ° <span class="hint">-90…90 · drag the 360° view or type</span></span>
-          <input type="number" name="pitch" min="-90" max="90" step="any" value="0" />
+          <span>Initial view heading ° <span class="hint">0–360 · drag the 360° view or type</span></span>
+          <input type="number" name="initialHeading" min="0" max="359.999" step="any" value="0" required />
         </label>
         <label>
-          <span>Pose roll ° <span class="hint">optional</span></span>
-          <input type="number" name="roll" min="-180" max="180" step="any" value="0" />
+          <span>Initial view pitch ° <span class="hint">-90…90 · drag the 360° view or type</span></span>
+          <input type="number" name="initialPitch" min="-90" max="90" step="any" value="0" />
         </label>
       </div>
 
@@ -134,8 +134,9 @@ const form = document.querySelector<HTMLFormElement>('#meta-form')!
 const btnClear = document.querySelector<HTMLButtonElement>('#btn-clear')!
 const latInput = form.elements.namedItem('latitude') as HTMLInputElement
 const lonInput = form.elements.namedItem('longitude') as HTMLInputElement
-const headingInput = form.elements.namedItem('heading') as HTMLInputElement
-const pitchInput = form.elements.namedItem('pitch') as HTMLInputElement
+const poseHeadingInput = form.elements.namedItem('poseHeading') as HTMLInputElement
+const initialHeadingInput = form.elements.namedItem('initialHeading') as HTMLInputElement
+const initialPitchInput = form.elements.namedItem('initialPitch') as HTMLInputElement
 const mapPicker = initMapPicker({
   container: document.querySelector<HTMLElement>('#location-map')!,
   latInput,
@@ -143,8 +144,9 @@ const mapPicker = initMapPicker({
 })
 const panoViewer = initPanoramaViewer({
   container: document.querySelector<HTMLElement>('#pano-viewer')!,
-  headingInput,
-  pitchInput,
+  poseHeadingInput,
+  initialHeadingInput,
+  initialPitchInput,
 })
 
 function showMessage(text: string, kind: 'warn' | 'error' | 'ok' | '') {
@@ -209,7 +211,6 @@ async function loadFile(file: File) {
     `
 
     const altInput = form.elements.namedItem('altitude') as HTMLInputElement
-    const rollInput = form.elements.namedItem('roll') as HTMLInputElement
 
     latInput.value =
       meta.latitude !== undefined ? String(meta.latitude) : ''
@@ -218,13 +219,18 @@ async function loadFile(file: File) {
     altInput.value =
       meta.altitude !== undefined ? String(meta.altitude) : ''
 
-    const heading =
+    const poseHeading =
       meta.gpano?.poseHeadingDegrees !== undefined
         ? meta.gpano.poseHeadingDegrees
         : 0
-    headingInput.value = String(heading)
-    pitchInput.value = String(meta.gpano?.posePitchDegrees ?? 0)
-    rollInput.value = String(meta.gpano?.poseRollDegrees ?? 0)
+    poseHeadingInput.value = String(poseHeading)
+
+    // Prefer real InitialView*; fall back to looking at image center (pose heading, pitch 0)
+    // so we never load old PosePitch into the look-direction fields.
+    initialHeadingInput.value = String(
+      meta.gpano?.initialViewHeadingDegrees ?? poseHeading,
+    )
+    initialPitchInput.value = String(meta.gpano?.initialViewPitchDegrees ?? 0)
 
     await panoViewer.setPanorama(state.objectUrl)
     if (prevUrl) URL.revokeObjectURL(prevUrl)
@@ -298,9 +304,9 @@ form.addEventListener('submit', (e) => {
   const latitude = Number(fd.get('latitude'))
   const longitude = Number(fd.get('longitude'))
   const altitudeRaw = String(fd.get('altitude') ?? '').trim()
-  const heading = Number(fd.get('heading'))
-  const pitch = Number(fd.get('pitch'))
-  const roll = Number(fd.get('roll'))
+  const poseHeading = Number(fd.get('poseHeading'))
+  const initialHeading = Number(fd.get('initialHeading'))
+  const initialPitch = Number(fd.get('initialPitch'))
 
   if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
     showMessage('Latitude must be between -90 and 90.', 'error')
@@ -310,8 +316,16 @@ form.addEventListener('submit', (e) => {
     showMessage('Longitude must be between -180 and 180.', 'error')
     return
   }
-  if (!Number.isFinite(heading) || heading < 0 || heading >= 360) {
+  if (!Number.isFinite(poseHeading) || poseHeading < 0 || poseHeading >= 360) {
     showMessage('Pose heading must be >= 0 and < 360.', 'error')
+    return
+  }
+  if (!Number.isFinite(initialHeading) || initialHeading < 0 || initialHeading >= 360) {
+    showMessage('Initial view heading must be >= 0 and < 360.', 'error')
+    return
+  }
+  if (Number.isFinite(initialPitch) && (initialPitch < -90 || initialPitch > 90)) {
+    showMessage('Initial view pitch must be between -90 and 90.', 'error')
     return
   }
 
@@ -320,9 +334,9 @@ form.addEventListener('submit', (e) => {
       latitude,
       longitude,
       altitude: altitudeRaw === '' ? undefined : Number(altitudeRaw),
-      poseHeadingDegrees: heading,
-      posePitchDegrees: Number.isFinite(pitch) ? pitch : 0,
-      poseRollDegrees: Number.isFinite(roll) ? roll : 0,
+      poseHeadingDegrees: poseHeading,
+      initialViewHeadingDegrees: initialHeading,
+      initialViewPitchDegrees: Number.isFinite(initialPitch) ? initialPitch : 0,
     })
 
     const blob = new Blob([new Uint8Array(out)], { type: 'image/jpeg' })

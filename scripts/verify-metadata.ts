@@ -30,8 +30,8 @@ async function main() {
     longitude: -70.6693,
     altitude: 570,
     poseHeadingDegrees: 45,
-    posePitchDegrees: 0,
-    poseRollDegrees: 0,
+    initialViewHeadingDegrees: 90,
+    initialViewPitchDegrees: 10,
   })
 
   const tmp = resolve(__dirname, '../tmp-verify.jpg')
@@ -51,11 +51,19 @@ async function main() {
     'UsePanoramaViewer',
     'PoseHeadingDegrees',
     '45',
+    'PosePitchDegrees',
+    'InitialViewHeadingDegrees',
+    '90',
+    'InitialViewPitchDegrees',
+    '10',
     'CroppedAreaImageWidthPixels',
     'FullPanoWidthPixels',
   ]
   for (const token of required) {
     if (!xml.includes(token)) throw new Error(`XMP missing: ${token}`)
+  }
+  if (!xml.includes('<GPano:PosePitchDegrees>0</GPano:PosePitchDegrees>')) {
+    throw new Error('PosePitchDegrees must be 0 (horizon unlocked from look pitch)')
   }
 
   const meta = await readMetadata(out)
@@ -68,11 +76,23 @@ async function main() {
   if (!meta.gpano || meta.gpano.poseHeadingDegrees !== 45) {
     throw new Error(`GPano heading mismatch: ${JSON.stringify(meta.gpano)}`)
   }
+  if (meta.gpano.posePitchDegrees !== 0) {
+    throw new Error(`GPano pose pitch must be 0: ${meta.gpano.posePitchDegrees}`)
+  }
+  if (meta.gpano.initialViewHeadingDegrees !== 90) {
+    throw new Error(`Initial view heading mismatch: ${meta.gpano.initialViewHeadingDegrees}`)
+  }
+  if (meta.gpano.initialViewPitchDegrees !== 10) {
+    throw new Error(`Initial view pitch mismatch: ${meta.gpano.initialViewPitchDegrees}`)
+  }
 
   console.log('OK — EXIF GPS + GPano XMP written and re-read successfully')
   console.log(`  dimensions: ${meta.width}×${meta.height}`)
   console.log(`  lat/lon: ${meta.latitude}, ${meta.longitude}`)
-  console.log(`  heading: ${meta.gpano.poseHeadingDegrees}`)
+  console.log(`  pose heading: ${meta.gpano.poseHeadingDegrees}`)
+  console.log(
+    `  initial view: ${meta.gpano.initialViewHeadingDegrees}° / ${meta.gpano.initialViewPitchDegrees}°`,
+  )
   console.log(`  output bytes: ${out.length} (saved ${tmp})`)
 
   // keep file for optional exiftool inspection; delete if clean env preferred

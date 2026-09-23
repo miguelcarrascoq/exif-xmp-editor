@@ -36,9 +36,11 @@ export interface WriteOptions {
   latitude: number
   longitude: number
   altitude?: number
+  /** Compass heading of the image center (required for Google Maps). */
   poseHeadingDegrees: number
-  posePitchDegrees?: number
-  poseRollDegrees?: number
+  /** Initial camera look direction (world/north frame). Does not tilt the sphere horizon. */
+  initialViewHeadingDegrees?: number
+  initialViewPitchDegrees?: number
 }
 
 export async function readMetadata(bytes: Uint8Array): Promise<ImageMetadata> {
@@ -107,15 +109,22 @@ export function writeMetadata(bytes: Uint8Array, options: WriteOptions): Uint8Ar
   segments = replaceOrInsertApp1(segments, () => false, exifSeg)
 
   // Build / replace XMP GPano
+  // PosePitch/Roll stay 0: they orient the sphere vs the real-world horizon.
+  // Looking around in the editor must NOT write those — use InitialView* instead.
   const gpano: GPanoFields = {
     ...defaultGPanoForFullSphere(width, height, options.poseHeadingDegrees),
     poseHeadingDegrees: normalizeHeading(options.poseHeadingDegrees),
+    posePitchDegrees: 0,
+    poseRollDegrees: 0,
   }
-  if (options.posePitchDegrees !== undefined) {
-    gpano.posePitchDegrees = options.posePitchDegrees
+  if (options.initialViewHeadingDegrees !== undefined) {
+    gpano.initialViewHeadingDegrees = Math.round(
+      normalizeHeading(options.initialViewHeadingDegrees),
+    )
   }
-  if (options.poseRollDegrees !== undefined) {
-    gpano.poseRollDegrees = options.poseRollDegrees
+  if (options.initialViewPitchDegrees !== undefined) {
+    const pitch = Math.max(-90, Math.min(90, options.initialViewPitchDegrees))
+    gpano.initialViewPitchDegrees = Math.round(pitch)
   }
 
   const xmpSeg = createXmpApp1(buildGPanoXmp(gpano))

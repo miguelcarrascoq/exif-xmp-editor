@@ -5,8 +5,12 @@ const POSE_DECIMALS = 1
 
 export interface PanoramaViewerOptions {
   container: HTMLElement
-  headingInput: HTMLInputElement
-  pitchInput: HTMLInputElement
+  /** Compass heading of the image center (PoseHeadingDegrees). */
+  poseHeadingInput: HTMLInputElement
+  /** Initial look direction in the world frame (InitialViewHeadingDegrees). */
+  initialHeadingInput: HTMLInputElement
+  /** Initial look pitch above the horizon (InitialViewPitchDegrees). */
+  initialPitchInput: HTMLInputElement
 }
 
 export interface PanoramaViewer {
@@ -42,35 +46,47 @@ function isValidPitch(p: number): boolean {
   return p >= -90 && p <= 90
 }
 
+/**
+ * PSV yaw is relative to the image center. GPano InitialView* is relative to
+ * real-world North / horizon. With PosePitch=0:
+ *   initialHeading = poseHeading + yaw
+ *   yaw = initialHeading - poseHeading
+ */
 export function initPanoramaViewer(options: PanoramaViewerOptions): PanoramaViewer {
-  const { container, headingInput, pitchInput } = options
+  const { container, poseHeadingInput, initialHeadingInput, initialPitchInput } = options
 
   let viewer: Viewer | null = null
   let syncing = false
 
-  function readPoseFromInputs(): { yaw: string; pitch: string } | null {
-    const heading = parsePose(headingInput.value)
-    const pitch = parsePose(pitchInput.value)
-    if (heading === null || pitch === null) return null
-    if (!isValidHeading(heading) || !isValidPitch(pitch)) return null
+  function readViewerPosition(): { yaw: string; pitch: string } | null {
+    const poseHeading = parsePose(poseHeadingInput.value) ?? 0
+    const initialHeading = parsePose(initialHeadingInput.value)
+    const initialPitch = parsePose(initialPitchInput.value)
+    if (initialHeading === null || initialPitch === null) return null
+    if (!isValidHeading(normalizeHeading(initialHeading)) || !isValidPitch(initialPitch)) {
+      return null
+    }
+    const yaw = normalizeHeading(initialHeading - poseHeading)
     return {
-      yaw: `${heading}deg`,
-      pitch: `${pitch}deg`,
+      yaw: `${yaw}deg`,
+      pitch: `${initialPitch}deg`,
     }
   }
 
   function writeInputsFromPosition(yawRad: number, pitchRad: number) {
-    const heading = normalizeHeading(radToDeg(yawRad))
+    const poseHeading = parsePose(poseHeadingInput.value) ?? 0
+    const yawDeg = radToDeg(yawRad)
+    const initialHeading = normalizeHeading(poseHeading + yawDeg)
     const pitch = Math.max(-90, Math.min(90, radToDeg(pitchRad)))
     syncing = true
-    headingInput.value = formatPose(heading)
-    pitchInput.value = formatPose(pitch)
+    initialHeadingInput.value = formatPose(initialHeading)
+    initialPitchInput.value = formatPose(pitch)
     syncing = false
   }
 
   function rotateFromInputs() {
     if (!viewer || syncing) return
-    const pose = readPoseFromInputs()
+    const pose = readViewerPosition()
     if (!pose) return
     syncing = true
     viewer.rotate(pose)
@@ -82,13 +98,13 @@ export function initPanoramaViewer(options: PanoramaViewerOptions): PanoramaView
     writeInputsFromPosition(e.position.yaw, e.position.pitch)
   }
 
-  for (const input of [headingInput, pitchInput]) {
+  for (const input of [poseHeadingInput, initialHeadingInput, initialPitchInput]) {
     input.addEventListener('input', rotateFromInputs)
     input.addEventListener('change', rotateFromInputs)
   }
 
   async function ensureViewer(url: string): Promise<Viewer> {
-    const pose = readPoseFromInputs()
+    const pose = readViewerPosition()
 
     if (viewer) {
       await viewer.setPanorama(url, {
