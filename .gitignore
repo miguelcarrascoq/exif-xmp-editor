@@ -1,0 +1,8 @@
+node_modules
+dist
+.DS_Store
+*.local
+.vscode/*
+!.vscode/extensions.json
+scripts/verify-metadata.bundled.mjs
+tmp-verify.jpg
