@@ -5,6 +5,8 @@ Browser-based tool to add **GPS coordinates** and **Google Photo Sphere (GPano) 
 Live demo (after GitHub Pages is enabled):  
 **https://miguelcarrascoq.github.io/exif-xmp-editor/**
 
+![EXIF / XMP Panorama Editor UI](docs/ui-screenshot.jpg)
+
 ## Why
 
 Google Maps and related products recognize a JPEG as a photo sphere when it contains the [GPano XMP namespace](https://developers.google.com/streetview/spherical-metadata) (`http://ns.google.com/photos/1.0/panorama/`). Latitude/longitude are stored as standard EXIF GPS tags.
