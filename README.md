@@ -2,8 +2,7 @@
 
 Browser-based tool to add **GPS coordinates** and **Google Photo Sphere (GPano) XMP** metadata to equirectangular JPEG panoramas. Processing runs entirely on your device — nothing is uploaded to a server.
 
-Live demo (after GitHub Pages is enabled):  
-**https://miguelcarrascoq.github.io/exif-xmp-editor/**
+**[Live demo](https://miguelcarrascoq.github.io/exif-xmp-editor/)**
 
 ![EXIF / XMP Panorama Editor UI](docs/ui-screenshot.jpg)
 
