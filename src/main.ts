@@ -38,6 +38,11 @@ app.innerHTML = `
     <strong>Drop an equirectangular JPEG here</strong>
     <span>or click to choose a file · processing stays on your device</span>
     <input type="file" id="file-input" accept="image/jpeg,.jpg,.jpeg" />
+    <div class="dropzone-sample">
+      <button type="button" class="sample-btn" id="btn-sample">
+        No image handy? Try sample panorama
+      </button>
+    </div>
   </div>
 
   <div id="message"></div>
@@ -127,6 +132,7 @@ app.innerHTML = `
 
 const dropzone = document.querySelector<HTMLDivElement>('#dropzone')!
 const fileInput = document.querySelector<HTMLInputElement>('#file-input')!
+const btnSample = document.querySelector<HTMLButtonElement>('#btn-sample')!
 const editor = document.querySelector<HTMLElement>('#editor')!
 const message = document.querySelector<HTMLDivElement>('#message')!
 const metaSummary = document.querySelector<HTMLDivElement>('#meta-summary')!
@@ -183,6 +189,26 @@ function clearState() {
   mapPicker.reset()
   showMessage('', '')
   fileInput.value = ''
+}
+
+async function loadSample() {
+  const label = btnSample.textContent
+  btnSample.disabled = true
+  btnSample.textContent = 'Loading sample…'
+  try {
+    const url = `${import.meta.env.BASE_URL}samples/equirectangular.jpg`
+    const res = await fetch(url)
+    if (!res.ok) throw new Error(`Sample image not found (${res.status}).`)
+    const blob = await res.blob()
+    const file = new File([blob], 'equirectangular.jpg', { type: 'image/jpeg' })
+    await loadFile(file)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Failed to load sample image.'
+    showMessage(msg, 'error')
+  } finally {
+    btnSample.disabled = false
+    btnSample.textContent = label ?? 'No image handy? Try sample panorama'
+  }
 }
 
 async function loadFile(file: File) {
@@ -267,6 +293,11 @@ dropzone.addEventListener('keydown', (e) => {
     e.preventDefault()
     fileInput.click()
   }
+})
+
+btnSample.addEventListener('click', (e) => {
+  e.stopPropagation()
+  void loadSample()
 })
 
 fileInput.addEventListener('change', () => {

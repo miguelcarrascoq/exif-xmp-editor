@@ -14,7 +14,7 @@ Typical input: a full equirectangular stitch (for example `5888 × 2944`, aspect
 
 ## Features
 
-- Drag & drop or select a JPEG
+- Drag & drop or select a JPEG (or try the built-in sample panorama if you have none)
 - Read existing GPS and GPano values when present
 - Edit latitude, longitude, optional altitude
 - Pick GPS on a map (OSM / OpenTopoMap / Esri satellite, Nominatim place search, OSM Places via Overpass when zoomed in)
@@ -53,6 +53,8 @@ Requirements: Node.js 18+ (20+ recommended).
 npm install
 npm run dev
 ```
+
+A sample equirectangular JPEG (`1920 × 960`) is served from `public/samples/equirectangular.jpg` and can be loaded from the dropzone (“Try sample panorama”).
 
 Build for production:
 

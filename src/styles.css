@@ -90,6 +90,34 @@ header p {
   display: none;
 }
 
+.dropzone-sample {
+  margin-top: 1.25rem;
+  padding-top: 1.15rem;
+  border-top: 1px solid var(--border);
+}
+
+.sample-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.15rem 0.35rem;
+  border-radius: 4px;
+}
+
+.sample-btn:hover:not(:disabled) {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
+.sample-btn:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
 .panel {
   margin-top: 1.5rem;
   background: var(--bg-elevated);
