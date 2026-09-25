@@ -49,73 +49,87 @@ app.innerHTML = `
 
   <section class="panel" id="editor" hidden>
     <h2>Image &amp; metadata</h2>
-    <div class="meta-row" id="meta-summary"></div>
-    <div class="preview-wrap">
-      <div
-        id="pano-viewer"
-        class="pano-viewer"
-        role="img"
-        aria-label="360 panorama preview — drag to set pose heading and pitch"
-      ></div>
-      <div class="pano-reticle" aria-hidden="true"></div>
+    <div class="editor-layout">
+      <div class="editor-main">
+        <div class="meta-row" id="meta-summary"></div>
+        <div class="preview-wrap">
+          <div
+            id="pano-viewer"
+            class="pano-viewer"
+            role="img"
+            aria-label="360 panorama preview — drag to set pose heading and pitch"
+          ></div>
+          <div class="pano-reticle" aria-hidden="true"></div>
+        </div>
+      </div>
+
+      <form id="meta-form" class="meta-form">
+        <div class="form-fields">
+          <div class="form-grid">
+            <label>
+              <span class="field-title">Altitude (m)</span>
+              <span class="field-hint hint">optional</span>
+              <input type="number" name="altitude" step="any" />
+            </label>
+            <label>
+              <span class="field-title">Pose heading °</span>
+              <span class="field-hint hint">0–360 · image center compass for Maps</span>
+              <input type="number" name="poseHeading" min="0" max="359.999" step="any" value="0" required />
+            </label>
+            <label>
+              <span class="field-title">Initial view heading °</span>
+              <span class="field-hint hint">0–360 · drag the 360° view or type</span>
+              <input type="number" name="initialHeading" min="0" max="359.999" step="any" value="0" required />
+            </label>
+            <label>
+              <span class="field-title">Initial view pitch °</span>
+              <span class="field-hint hint">-90…90 · drag the 360° view or type</span>
+              <input type="number" name="initialPitch" min="-90" max="90" step="any" value="0" />
+            </label>
+          </div>
+
+          <div class="form-grid">
+            <label>
+              <span class="field-title">Latitude</span>
+              <span class="field-hint hint">(-90 … 90)</span>
+              <input type="number" name="latitude" step="any" required />
+            </label>
+            <label>
+              <span class="field-title">Longitude</span>
+              <span class="field-hint hint">(-180 … 180)</span>
+              <input type="number" name="longitude" step="any" required />
+            </label>
+          </div>
+        </div>
+
+        <div class="map-picker">
+          <span class="map-picker-label">
+            Pick on map
+            <span class="hint">search places · Places overlay when zoomed in · Map / Topo / Satellite</span>
+          </span>
+          <div
+            id="location-map"
+            class="location-map"
+            role="application"
+            aria-label="Map to pick GPS location"
+          ></div>
+        </div>
+
+        <div class="form-footer">
+          <ul class="checklist">
+            <li>ProjectionType = equirectangular</li>
+            <li>UsePanoramaViewer = True</li>
+            <li>Full / cropped pano pixel sizes = image width × height</li>
+            <li>GPS EXIF latitude / longitude written</li>
+          </ul>
+
+          <div class="actions">
+            <button type="submit" class="primary" id="btn-download">Apply &amp; download</button>
+            <button type="button" class="secondary" id="btn-clear">Clear</button>
+          </div>
+        </div>
+      </form>
     </div>
-
-    <form id="meta-form">
-      <div class="form-grid">
-        <label>
-          <span>Altitude (m) <span class="hint">optional</span></span>
-          <input type="number" name="altitude" step="any" />
-        </label>
-        <label>
-          <span>Pose heading ° <span class="hint">0–360 · image center compass for Maps</span></span>
-          <input type="number" name="poseHeading" min="0" max="359.999" step="any" value="0" required />
-        </label>
-        <label>
-          <span>Initial view heading ° <span class="hint">0–360 · drag the 360° view or type</span></span>
-          <input type="number" name="initialHeading" min="0" max="359.999" step="any" value="0" required />
-        </label>
-        <label>
-          <span>Initial view pitch ° <span class="hint">-90…90 · drag the 360° view or type</span></span>
-          <input type="number" name="initialPitch" min="-90" max="90" step="any" value="0" />
-        </label>
-      </div>
-
-      <div class="form-grid">
-        <label>
-          <span>Latitude <span class="hint">(-90 … 90)</span></span>
-          <input type="number" name="latitude" step="any" required />
-        </label>
-        <label>
-          <span>Longitude <span class="hint">(-180 … 180)</span></span>
-          <input type="number" name="longitude" step="any" required />
-        </label>
-      </div>
-
-      <div class="map-picker">
-        <span class="map-picker-label">
-          Pick on map
-          <span class="hint">search places · Places overlay when zoomed in · Map / Topo / Satellite</span>
-        </span>
-        <div
-          id="location-map"
-          class="location-map"
-          role="application"
-          aria-label="Map to pick GPS location"
-        ></div>
-      </div>
-
-      <ul class="checklist">
-        <li>ProjectionType = equirectangular</li>
-        <li>UsePanoramaViewer = True</li>
-        <li>Full / cropped pano pixel sizes = image width × height</li>
-        <li>GPS EXIF latitude / longitude written</li>
-      </ul>
-
-      <div class="actions">
-        <button type="submit" class="primary" id="btn-download">Apply &amp; download</button>
-        <button type="button" class="secondary" id="btn-clear">Clear</button>
-      </div>
-    </form>
   </section>
 
   <footer>
@@ -326,6 +340,16 @@ dropzone.addEventListener('drop', (e) => {
 })
 
 btnClear.addEventListener('click', () => clearState())
+
+let resizeTimer = 0
+window.addEventListener('resize', () => {
+  if (editor.hidden) return
+  window.clearTimeout(resizeTimer)
+  resizeTimer = window.setTimeout(() => {
+    panoViewer.resize()
+    mapPicker.invalidateSize()
+  }, 150)
+})
 
 form.addEventListener('submit', (e) => {
   e.preventDefault()
